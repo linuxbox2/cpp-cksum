@@ -5,9 +5,11 @@
 #include <aws/core/utils/memory/stl/AWSAllocator.h>
 #include <aws/s3/S3ServiceClientModel.h>
 #include <aws/s3/model/ListObjectsRequest.h>
+#include <aws/s3/model/PutObjectRequest.h>
 #include <cstdint>
 #include <memory>
 #include <iostream>
+#include <fstream>
 #include <aws/core/Aws.h>
 #include <aws/s3/S3Client.h>
 #include <aws/core/auth/AWSCredentialsProviderChain.h>
@@ -64,6 +66,33 @@ std::shared_ptr<S3Client> get_http_client(bool ssl = false)
   return s3;
 } /* get_http_client */
 
+void putObjectFromFile(S3Client& s3, String in_file_path, String out_key_name) {
+  Aws::S3::Model::PutObjectRequest req;
+  req.SetBucket(bucket_name);
+  req.SetKey(out_key_name);
+
+  std::shared_ptr<Aws::IOStream> inputData =
+    Aws::MakeShared<Aws::FStream>("SampleAllocationTag",
+				  in_file_path.c_str(),
+				  std::ios_base::in | std::ios_base::binary);
+
+    if (!*inputData) {
+        std::cerr << "Error unable to read file " << in_file_path << std::endl;
+        return;
+    }
+
+    req.SetBody(inputData);
+
+    Aws::S3::Model::PutObjectOutcome result = s3.PutObject(req);
+    if (!result.IsSuccess()) {
+        std::cerr << "Error: PutObject: " <<
+                  result.GetError().GetMessage() << std::endl;
+    } else {
+      std::cout << "Added object " << out_key_name << " to bucket "
+		<< bucket_name << std::endl;
+    }
+} /* putObjectFromFile */
+
 void list_objects(S3Client& s3)
 {
   Aws::S3::Model::ListObjectsRequest req;
@@ -83,7 +112,7 @@ void list_objects(S3Client& s3)
       std::cout << " name: " << object.GetKey()
 		<< " size: " << object.GetSize()
 		<< std::endl;
-    }
+    }    
   }
 } /* list_objects */
 
@@ -103,6 +132,11 @@ int main(int argc, char* argv[])
     auto ssl_client = get_http_client(true /* ssl */);
     std::cout << "ssl result:" << std::endl;
     list_objects(*ssl_client);
+
+    std::string file_name = "file-200b";
+    std::cout << "put " << file_name << " via http" << std::endl;
+    putObjectFromFile(*http_client, file_name, "object_out");
+
   } catch (...) {
   }
 
