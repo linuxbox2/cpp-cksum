@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 # Set the AWS service components used by this project.
-set(SERVICE_COMPONENTS s3)
+set(SERVICE_COMPONENTS s3 transfer)
 
 project("s3_ckusm_test")
 
@@ -27,6 +27,7 @@ set(aws-c-event-stream_DIR "/opt/aws-sdk-cpp/lib64/aws-c-event-stream/cmake/")
 set(aws-checksums_DIR "/opt/aws-sdk-cpp/lib64/aws-checksums/cmake/")
 set(aws-c-s3_DIR "/opt/aws-sdk-cpp/lib64/aws-c-s3/cmake/")
 set(aws-cpp-sdk-s3_DIR "/opt/aws-sdk-cpp/lib64/cmake/aws-cpp-sdk-s3/")
+set(aws-cpp-sdk-transfer_DIR "/opt/aws-sdk-cpp/lib64/cmake/aws-cpp-sdk-transfer/")
 
 find_package(AWSSDK REQUIRED COMPONENTS ${SERVICE_COMPONENTS})
 

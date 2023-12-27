@@ -16,6 +16,11 @@
 #include <aws/s3/S3Client.h>
 #include <aws/core/auth/AWSCredentialsProviderChain.h>
 
+/* for TransferManager */
+#include <aws/core/utils/threading/Executor.h>
+#include <aws/transfer/TransferManager.h>
+#include <aws/transfer/TransferHandle.h>
+
 using namespace Aws;
 using namespace Aws::Auth;
 using namespace Aws::Http;
@@ -111,8 +116,32 @@ void putObjectFromFile2(S3Client& s3, String in_file_path, String out_key_name,
   req.SetBody(objectStream);
   req.SetChecksumAlgorithm(ChecksumAlgorithm::CRC32);
   auto result = s3.PutObject(req);
-}
+} /* putObjectfromfile2 */
 
+void tryTransferManager(std::shared_ptr<S3Client> s3, String in_file_path, String out_key_name,
+		       ChecksumAlgorithm algo = ChecksumAlgorithm::NOT_SET)
+{
+  auto executor = Aws::MakeShared<Aws::Utils::Threading::PooledThreadExecutor>("executor", 25);
+  Aws::Transfer::TransferManagerConfiguration transfer_config(executor.get());
+  transfer_config.s3Client = s3;
+
+  auto transfer_manager = Aws::Transfer::TransferManager::Create(transfer_config);
+  auto uploadHandle =
+    transfer_manager->UploadFile(in_file_path, bucket_name, out_key_name,
+				 "text/plain", Aws::Map<Aws::String, Aws::String>());
+  uploadHandle->WaitUntilFinished();
+  bool success = uploadHandle->GetStatus() == Transfer::TransferStatus::COMPLETED;
+  if (!success) {
+    auto err = uploadHandle->GetLastError();
+    std::cout << "File upload failed:  "<< err.GetMessage() << std::endl;
+  } else
+    {
+      std::cout << "File upload finished." << std::endl;
+
+      // Verify that the upload retrieved the expected amount of data.
+      assert(uploadHandle->GetBytesTotalSize() == uploadHandle->GetBytesTransferred());
+    }
+} /* tryTransferManager */
 
 void list_objects(S3Client& s3)
 {
@@ -160,6 +189,9 @@ int main(int argc, char* argv[])
 
     std::cout << "put " << file_name << " via http w/SHA256 checksum" << std::endl;
     putObjectFromFile2(*http_client, file_name, "object_out", ChecksumAlgorithm::SHA256);
+
+    file_name = "file-200b";
+    tryTransferManager(http_client, file_name, "object_out");
   } catch (...) {
   }
 
