@@ -1,6 +1,7 @@
 // -*- mode:C++; tab-width:8; c-basic-offset:2; indent-tabs-mode:t -*-
 // vim: ts=8 sw=2 smarttab
 
+#include <aws/common/assert.h>
 #include <aws/core/http/Scheme.h>
 #include <aws/core/utils/memory/stl/AWSAllocator.h>
 #include <aws/s3/S3ServiceClientModel.h>
@@ -96,6 +97,23 @@ void putObjectFromFile(S3Client& s3, String in_file_path, String out_key_name,
     }
 } /* putObjectFromFile */
 
+
+void putObjectFromFile2(S3Client& s3, String in_file_path, String out_key_name,
+		       ChecksumAlgorithm algo = ChecksumAlgorithm::NOT_SET)
+{
+  // Checksums in request body using aws-chunked trailer
+  std::shared_ptr<Aws::IOStream> objectStream = Aws::MakeShared<Aws::StringStream>("s3 ostream");
+  *objectStream << "Test Object";
+
+  PutObjectRequest req;
+  req.SetBucket(bucket_name);
+  req.SetKey(out_key_name);
+  req.SetBody(objectStream);
+  req.SetChecksumAlgorithm(ChecksumAlgorithm::CRC32);
+  auto result = s3.PutObject(req);
+}
+
+
 void list_objects(S3Client& s3)
 {
   Aws::S3::Model::ListObjectsRequest req;
@@ -138,10 +156,10 @@ int main(int argc, char* argv[])
 
     std::string file_name = "file-200b";
     std::cout << "put " << file_name << " via http" << std::endl;
-    putObjectFromFile(*http_client, file_name, "object_out");
+    putObjectFromFile2(*http_client, file_name, "object_out");
 
     std::cout << "put " << file_name << " via http w/SHA256 checksum" << std::endl;
-    putObjectFromFile(*http_client, file_name, "object_out", ChecksumAlgorithm::SHA256);
+    putObjectFromFile2(*http_client, file_name, "object_out", ChecksumAlgorithm::SHA256);
   } catch (...) {
   }
 
