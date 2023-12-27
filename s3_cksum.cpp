@@ -6,6 +6,7 @@
 #include <aws/s3/S3ServiceClientModel.h>
 #include <aws/s3/model/ListObjectsRequest.h>
 #include <aws/s3/model/PutObjectRequest.h>
+#include <aws/s3/model/ChecksumAlgorithm.h>
 #include <cstdint>
 #include <memory>
 #include <iostream>
@@ -66,10 +67,12 @@ std::shared_ptr<S3Client> get_http_client(bool ssl = false)
   return s3;
 } /* get_http_client */
 
-void putObjectFromFile(S3Client& s3, String in_file_path, String out_key_name) {
+void putObjectFromFile(S3Client& s3, String in_file_path, String out_key_name,
+		       ChecksumAlgorithm algo = ChecksumAlgorithm::NOT_SET) {
   Aws::S3::Model::PutObjectRequest req;
   req.SetBucket(bucket_name);
   req.SetKey(out_key_name);
+  req.SetChecksumAlgorithm(algo);
 
   std::shared_ptr<Aws::IOStream> inputData =
     Aws::MakeShared<Aws::FStream>("SampleAllocationTag",
@@ -137,6 +140,8 @@ int main(int argc, char* argv[])
     std::cout << "put " << file_name << " via http" << std::endl;
     putObjectFromFile(*http_client, file_name, "object_out");
 
+    std::cout << "put " << file_name << " via http w/SHA256 checksum" << std::endl;
+    putObjectFromFile(*http_client, file_name, "object_out", ChecksumAlgorithm::SHA256);
   } catch (...) {
   }
 
