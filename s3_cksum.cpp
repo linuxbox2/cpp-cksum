@@ -12,6 +12,7 @@
 #include <memory>
 #include <iostream>
 #include <fstream>
+#include <format>
 #include <aws/core/Aws.h>
 #include <aws/s3/S3Client.h>
 #include <aws/core/auth/AWSCredentialsProviderChain.h>
@@ -102,21 +103,20 @@ void putObjectFromFile(S3Client& s3, String in_file_path, String out_key_name,
     }
 } /* putObjectFromFile */
 
-
-void putObjectFromFile2(S3Client& s3, String in_file_path, String out_key_name,
-		       ChecksumAlgorithm algo = ChecksumAlgorithm::NOT_SET)
+void putObjectFromString(S3Client& s3, String body, String out_key_name,
+			 ChecksumAlgorithm algo = ChecksumAlgorithm::NOT_SET)
 {
   // Checksums in request body using aws-chunked trailer
   std::shared_ptr<Aws::IOStream> objectStream = Aws::MakeShared<Aws::StringStream>("s3 ostream");
-  *objectStream << "Test Object";
+  *objectStream << body;
 
   PutObjectRequest req;
   req.SetBucket(bucket_name);
   req.SetKey(out_key_name);
   req.SetBody(objectStream);
-  req.SetChecksumAlgorithm(ChecksumAlgorithm::CRC32);
+  req.SetChecksumAlgorithm(algo);
   auto result = s3.PutObject(req);
-} /* putObjectfromfile2 */
+} /* putObjectfromString */
 
 void tryTransferManager(std::shared_ptr<S3Client> s3, String in_file_path, String out_key_name,
 		       ChecksumAlgorithm algo = ChecksumAlgorithm::NOT_SET)
@@ -183,6 +183,7 @@ int main(int argc, char* argv[])
     std::cout << "ssl result:" << std::endl;
     list_objects(*ssl_client);
 
+#if 0
     std::string file_name = "file-200b";
     std::cout << "put " << file_name << " via http" << std::endl;
     putObjectFromFile2(*http_client, file_name, "object_out");
@@ -192,6 +193,19 @@ int main(int argc, char* argv[])
 
     file_name = "file-200b";
     tryTransferManager(http_client, file_name, "object_out");
+#endif
+    
+    std::string dolor =
+      R"(Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.)";
+
+    for (auto algo : {ChecksumAlgorithm::CRC32, ChecksumAlgorithm::CRC32C, ChecksumAlgorithm::SHA1,
+		      ChecksumAlgorithm::SHA256}) {
+      std::cout << "put text="
+		<< std::format("\"{}\"", dolor)
+                << " via http checksum=" << int(algo)
+                << std::endl;
+      putObjectFromString(*http_client, dolor, "object_out", algo);
+    }
   } catch (...) {
   }
 
