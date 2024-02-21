@@ -31,9 +31,25 @@ set(aws-cpp-sdk-transfer_DIR "/opt/aws-sdk-cpp/lib64/cmake/aws-cpp-sdk-transfer/
 
 find_package(AWSSDK REQUIRED COMPONENTS ${SERVICE_COMPONENTS})
 
+add_library(s3_common STATIC
+	s3_common.cpp)
+
+target_include_directories(s3_common
+	PUBLIC ${AWSSDK_INCLUDE_DIRS})
 
 add_executable(${PROJECT_NAME}
         s3_cksum.cpp)
 
 target_link_libraries(${PROJECT_NAME}
+	s3_common
+        ${AWSSDK_LINK_LIBRARIES})
+
+add_executable(s3_keyreserved
+        s3_keyreserved.cpp)
+
+target_include_directories(s3_keyreserved
+	PUBLIC ${AWSSDK_INCLUDE_DIRS})
+
+target_link_libraries(s3_keyreserved
+	s3_common
         ${AWSSDK_LINK_LIBRARIES})
